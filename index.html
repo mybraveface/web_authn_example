@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>WebAuthn Windows Hello Example</title>
+  </head>
+  <body>
+    <h1>WebAuthn Windows Hello Example</h1>
+    <form id="registerForm">
+      <input type="text" id="username" placeholder="Username" required />
+      <button type="submit">Register</button>
+    </form>
+    <form id="loginForm">
+      <input type="text" id="loginUsername" placeholder="Username" required />
+      <button type="submit">Login</button>
+    </form>
+    <script>
+      const users = JSON.parse(localStorage.getItem("users")) || {};
+
+      document
+        .getElementById("registerForm")
+        .addEventListener("submit", async (event) => {
+          event.preventDefault();
+          const username = document.getElementById("username").value;
+
+          const publicKeyCredentialCreationOptions = {
+            challenge: Uint8Array.from("randomString", (c) => c.charCodeAt(0)),
+            rp: { name: "Example Corp" },
+            user: {
+              id: Uint8Array.from(username, (c) => c.charCodeAt(0)),
+              name: username,
+              displayName: username,
+            },
+            pubKeyCredParams: [{ type: "public-key", alg: -7 }],
+            authenticatorSelection: {
+              authenticatorAttachment: "platform",
+              userVerification: "required",
+            },
+          };
+
+          try {
+            const credential = await navigator.credentials.create({
+              publicKey: publicKeyCredentialCreationOptions,
+            });
+            users[username] = credential;
+            localStorage.setItem("users", JSON.stringify(users));
+            alert("Registration successful");
+          } catch (err) {
+            alert("Registration failed: " + err);
+          }
+        });
+
+      document
+        .getElementById("loginForm")
+        .addEventListener("submit", async (event) => {
+          event.preventDefault();
+          const username = document.getElementById("loginUsername").value;
+
+          if (!users[username]) {
+            alert("User not found");
+            return;
+          }
+
+          const publicKeyCredentialRequestOptions = {
+            challenge: Uint8Array.from("randomString", (c) => c.charCodeAt(0)),
+            allowCredentials: [
+              {
+                id: new Uint8Array(users[username].rawId),
+                type: "public-key",
+                transports: ["internal"],
+              },
+            ],
+            userVerification: "required",
+          };
+
+          try {
+            const assertion = await navigator.credentials.get({
+              publicKey: publicKeyCredentialRequestOptions,
+            });
+            alert("Authentication successful");
+          } catch (err) {
+            alert("Authentication failed: " + err);
+          }
+        });
+    </script>
+  </body>
+</html>
